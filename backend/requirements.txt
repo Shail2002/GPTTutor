@@ -1,0 +1,36 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.4.2
+python-dotenv==1.0.0
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+pydantic-settings==2.0.3
+python-multipart==0.0.6
+aiofiles==23.2.1
+requests==2.31.0
+urllib3==1.26.20
+
+# AI & Vector DB
+openai==1.76.2
+httpx==0.27.2
+langchain==0.0.350
+chromadb==0.4.14
+
+# PDF & Text Processing
+pypdf==3.17.1
+python-docx==0.8.11
+python-pptx==0.6.21
+beautifulsoup4==4.12.2
+unstructured==0.10.30
+pdf2image==1.16.3
+pytesseract==0.3.10
+
+# Database & Async
+asyncpg==0.29.0
+sqlalchemy-utils==0.41.1
+
+# Utilities
+python-jose==3.3.0
+passlib==1.7.4
+bcrypt==4.1.1
+typing-extensions==4.11.0

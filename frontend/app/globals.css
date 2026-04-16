@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  @apply border-gray-200;
+}
+
+html {
+  @apply scroll-smooth;
+}
+
+body {
+  @apply bg-white text-gray-900;
+}
+
+.academic-card {
+  @apply rounded-lg border border-gray-200 shadow-sm bg-white hover:shadow-md transition-shadow duration-200;
+}
+
+.gradient-blue {
+  background: linear-gradient(135deg, #1e3a5f 0%, #2851a3 100%);
+}
