@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 # Material Models
 class MaterialCreate(BaseModel):
@@ -32,13 +32,15 @@ class ChatResponse(BaseModel):
 
 # Study Tools Models
 class SummaryRequest(BaseModel):
-    length: Optional[str] = "medium"  # short, medium, long
+    length: Optional[Literal["short", "medium", "long"]] = "medium"
 
 class FlashcardRequest(BaseModel):
     count: int = 10
+    level: Literal["beginner", "intermediate", "advanced"] = "beginner"
 
 class QuizRequest(BaseModel):
     questions: int = 5
+    level: Literal["beginner", "intermediate", "advanced"] = "beginner"
 
 class SummaryResponse(BaseModel):
     id: str

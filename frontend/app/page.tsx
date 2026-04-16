@@ -42,7 +42,7 @@ export default function LandingPage() {
             <span className="text-sm font-medium text-indigo-700">ACADEMIC EXCELLENCE</span>
           </div>
           <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
-            Your AI Teaching Assistant for FE524
+            Your AI Tutor For FE524
           </h1>
           <p className="text-xl text-gray-600 mb-8">
             Navigate complex course materials with an intelligent sanctuary designed for deep

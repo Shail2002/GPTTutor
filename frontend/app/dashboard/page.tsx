@@ -57,37 +57,6 @@ export default function DashboardPage() {
 
       {/* Content */}
       <div className="p-8">
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <div className="academic-card px-6 py-6 cursor-pointer hover:border-indigo-300">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <FileText className="text-blue-600" size={24} />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">Summarize Latest Lecture</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  AI will parse your latest recorded session into concise study notes.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="academic-card px-6 py-6 cursor-pointer hover:border-indigo-300">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-purple-100 rounded-lg">
-                <span className="text-2xl">💬</span>
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">Start Tutor Chat</h3>
-                <p className="text-sm text-gray-600 mt-1">
-                  Interactive dialogue to clarify complex financial concepts and formulas.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Recent Materials */}
         <div>
           <div className="flex items-center justify-between mb-6">

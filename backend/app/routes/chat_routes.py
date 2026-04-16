@@ -29,6 +29,72 @@ def _load_material_text(material: Material) -> str:
     return ""
 
 
+def _is_greeting(query: str) -> bool:
+    text = query.lower().strip()
+    greeting_terms = ["hi", "hello", "hey", "good morning", "good afternoon", "good evening"]
+    return any(text == term or text.startswith(f"{term} ") for term in greeting_terms)
+
+
+def _is_out_of_scope(query: str) -> bool:
+    text = query.lower()
+    fe524_terms = [
+        "fe524", "financial engineering", "option", "derivative", "derivatives", "pricing",
+        "black-scholes", "black scholes", "volatility", "hedge", "bond", "yield", "risk",
+        "portfolio", "stochastic", "monta", "martingale", "binomial", "greek", "delta",
+        "gamma", "vega", "theta", "rho", "forward", "futures", "swap", "call", "put",
+        "lecture", "pdf", "summary", "flashcard", "quiz", "material", "course",
+    ]
+    unrelated_terms = [
+        "weather", "recipe", "cooking", "movie", "music", "travel", "fitness", "sports",
+        "politics", "news", "shopping", "game", "birthday", "joke", "poem", "relationship",
+    ]
+    if any(term in text for term in unrelated_terms) and not any(term in text for term in fe524_terms):
+        return True
+    return False
+
+
+def _general_fe524_reply(query: str) -> str:
+    client = rag_service.ensure_openai_client()
+    if not client:
+        return "Please ask me anything about FE524."
+
+    try:
+        response = client.chat.completions.create(
+            model=settings.OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": PromptService.SYSTEM_PROMPT},
+                {"role": "user", "content": PromptService.GENERAL_CHAT_PROMPT_TEMPLATE.format(query=query)},
+            ],
+            temperature=0.5,
+            max_tokens=700,
+        )
+        return response.choices[0].message.content or "Please ask me anything about FE524."
+    except Exception as exc:
+        logger.error(f"General FE524 reply failed: {exc}")
+        return "Please ask me anything about FE524."
+
+
+def _save_chat_response(db: Session, query_text: str, answer: str, sources: list[str]) -> ChatResponse:
+    chat_record = Chat(
+        user_id=None,
+        query=query_text,
+        response=answer,
+        sources=json.dumps(sources),
+        created_at=datetime.utcnow(),
+    )
+    db.add(chat_record)
+    db.commit()
+    db.refresh(chat_record)
+
+    return ChatResponse(
+        id=chat_record.id,
+        query=query_text,
+        response=answer,
+        sources=sources,
+        timestamp=chat_record.created_at,
+    )
+
+
 @router.post("")
 @router.post("/")
 async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatResponse:
@@ -40,14 +106,30 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
         query_text = request.query.strip()
         lowered_query = query_text.lower()
 
-        # If no materials specified, retrieve from all
-        material_ids = request.material_ids if request.material_ids else None
+        material_ids = request.material_ids or []
+
+        if _is_greeting(query_text):
+            answer = (
+                "Hi! I’m your FE524 AI tutor. Ask me anything about the course, "
+                "and I’ll keep the answer focused on FE524 concepts, formulas, or your uploaded lecture notes."
+            )
+            return _save_chat_response(db, query_text, answer, [])
+
+        if _is_out_of_scope(query_text):
+            answer = "Please ask me anything about FE524. I can help with course concepts, formulas, lecture notes, and exam prep."
+            return _save_chat_response(db, query_text, answer, [])
 
         # Summary-style questions should use the full material text, not just similarity search.
         if any(keyword in lowered_query for keyword in ["summarize", "summary", "summarise"]):
+            if not material_ids:
+                answer = (
+                    "I can summarize your FE524 lecture notes once you attach or select a PDF. "
+                    "If you want, ask me a normal FE524 question now and I’ll help right away."
+                )
+                return _save_chat_response(db, query_text, answer, [])
+
             material_query = db.query(Material)
-            if material_ids:
-                material_query = material_query.filter(Material.id.in_(material_ids))
+            material_query = material_query.filter(Material.id.in_(material_ids))
 
             materials = material_query.order_by(Material.uploaded_at.desc()).all()
             full_text = "\n\n".join(
@@ -58,6 +140,7 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
                 summary_prompt = PromptService.SUMMARY_PROMPT_TEMPLATE.format(
                     content=full_text[:30000],
                     length="medium",
+                    word_limit=200,
                 )
 
                 client = rag_service.ensure_openai_client()
@@ -95,53 +178,26 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
                         )
                     except Exception as summary_error:
                         logger.error(f"Summary generation failed: {summary_error}")
-        
-        # Retrieve relevant chunks from vector DB
-        relevant_chunks = rag_service.retrieve_relevant_chunks(
-            query=query_text,
-            material_ids=material_ids
-        )
-        
-        if not relevant_chunks:
-            # Fall back to a broader search across all available materials before giving up.
-            if material_ids:
-                relevant_chunks = rag_service.retrieve_relevant_chunks(query=query_text)
 
-            if not relevant_chunks:
-                answer = "I couldn't find relevant materials to answer this question. Try selecting a different material or upload relevant course materials first."
-                sources = []
-            else:
+            relevant_chunks = rag_service.retrieve_relevant_chunks(
+                query=query_text,
+                material_ids=material_ids,
+            )
+
+            if relevant_chunks:
                 answer, sources = rag_service.generate_answer(
                     query=query_text,
-                    relevant_chunks=relevant_chunks
+                    relevant_chunks=relevant_chunks,
                 )
+            else:
+                answer = _general_fe524_reply(query_text)
+                sources = []
         else:
-            # Generate answer using LLM with context
-            answer, sources = rag_service.generate_answer(
-                query=query_text,
-                relevant_chunks=relevant_chunks
-            )
-        
+            answer = _general_fe524_reply(query_text)
+            sources = []
+
         # Save chat to database
-        chat_record = Chat(
-            user_id=None,  # TODO: Get from auth context
-            query=query_text,
-            response=answer,
-            sources=json.dumps(sources),
-            created_at=datetime.utcnow()
-        )
-        
-        db.add(chat_record)
-        db.commit()
-        db.refresh(chat_record)
-        
-        return ChatResponse(
-            id=chat_record.id,
-            query=query_text,
-            response=answer,
-            sources=sources,
-            timestamp=chat_record.created_at
-        )
+        return _save_chat_response(db, query_text, answer, sources)
     
     except Exception as e:
         logger.error(f"Error in chat endpoint: {e}")

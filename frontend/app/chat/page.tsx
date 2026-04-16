@@ -1,10 +1,8 @@
 "use client"
 
-import { Send, Plus, Smile, Paperclip, Zap, Loader, Mic, MicOff, Play, Trash2, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { Send, Plus, Smile, Paperclip, Zap, Loader, Trash2, ThumbsUp, ThumbsDown, Mic, MicOff } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import apiClient from '../../lib/api'
-
-const CHAT_SESSIONS_KEY = 'fe524_chat_sessions'
 
 interface Message {
   id: string
@@ -67,50 +65,14 @@ export default function ChatPage() {
   const recordedChunksRef = useRef<Blob[]>([])
   const emojiOptions = ['😀', '😊', '🧠', '📌', '✍️', '📚', '🎯', '✨']
 
-  // Initialize chat sessions and materials
+  // Initialize chat session and materials. Chat is intentionally in-memory only.
   useEffect(() => {
     const loadData = async () => {
-      let initialized = false
-
-      try {
-        const raw = localStorage.getItem(CHAT_SESSIONS_KEY)
-        if (raw) {
-          const parsed = JSON.parse(raw) as ChatSession[]
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            setSessions(parsed)
-            setActiveSessionId(parsed[0].id)
-            setMessages(parsed[0].messages)
-            setSelectedMaterialIds(parsed[0].selectedMaterialIds)
-            initialized = true
-          }
-        }
-      } catch {
-        // If local data is malformed, start with fresh session.
-      }
-
-      if (!initialized) {
-        const initial = newSession()
-        try {
-          // Seed first session with recent assistant responses for continuity.
-          const history = await apiClient.getChatHistory(20)
-          const messagesFromHistory: Message[] = history.map((chat) => ({
-            id: chat.id,
-            role: 'assistant' as const,
-            content: chat.response,
-            timestamp: new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            sources: chat.sources && chat.sources.length > 0 ? chat.sources : undefined,
-          })).reverse()
-          initial.messages = messagesFromHistory
-          initial.name = createSessionName(messagesFromHistory)
-        } catch {
-          // No history available is okay for a fresh start.
-        }
-
-        setSessions([initial])
-        setActiveSessionId(initial.id)
-        setMessages(initial.messages)
-        setSelectedMaterialIds(initial.selectedMaterialIds)
-      }
+      const initial = newSession()
+      setSessions([initial])
+      setActiveSessionId(initial.id)
+      setMessages(initial.messages)
+      setSelectedMaterialIds(initial.selectedMaterialIds)
 
       try {
         const mats = await apiClient.getMaterials()
@@ -122,13 +84,6 @@ export default function ChatPage() {
 
     loadData()
   }, [])
-
-  // Persist sessions across refresh.
-  useEffect(() => {
-    if (sessions.length > 0) {
-      localStorage.setItem(CHAT_SESSIONS_KEY, JSON.stringify(sessions))
-    }
-  }, [sessions])
 
   // Keep active session in sync with message and filter changes.
   useEffect(() => {
@@ -265,9 +220,6 @@ export default function ChatPage() {
     try {
       const uploaded = await apiClient.uploadMaterial(file)
       setMaterials(prev => [uploaded, ...prev.filter(m => m.id !== uploaded.id)])
-      setSelectedMaterialIds(prev =>
-        prev.includes(uploaded.id) ? prev : [...prev, uploaded.id]
-      )
     } catch (error) {
       console.error('Attachment upload failed:', error)
       alert('Attachment upload failed. Please try again.')
@@ -325,19 +277,6 @@ export default function ChatPage() {
     setIsRecording(false)
   }
 
-  const speakMessage = async (text: string) => {
-    try {
-      const blob = await apiClient.textToSpeech(text)
-      const url = URL.createObjectURL(blob)
-      const audio = new Audio(url)
-      audio.play()
-      audio.onended = () => URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Audio playback failed:', error)
-      alert('Could not generate audio for this response.')
-    }
-  }
-
   const showDictationStatus = isRecording
     ? 'Recording...'
     : isTranscribing
@@ -355,10 +294,11 @@ export default function ChatPage() {
         <button
           type="button"
           onClick={createChatSession}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-3 py-2 hover:bg-gray-100 rounded-lg transition-colors text-sm font-medium"
           title="New session"
         >
           <Plus size={20} />
+          New Chat
         </button>
       </div>
 
@@ -432,13 +372,6 @@ export default function ChatPage() {
                   </div>
                   {message.role === 'assistant' && (
                     <div className="mt-2 flex items-center gap-3">
-                      <button
-                        onClick={() => speakMessage(message.content)}
-                        className="inline-flex items-center gap-1 text-xs text-indigo-700 hover:text-indigo-900"
-                      >
-                        <Play size={12} />
-                        Play audio
-                      </button>
                       <button
                         type="button"
                         onClick={() => setMessageFeedback(message.id, 'up')}
@@ -529,14 +462,6 @@ export default function ChatPage() {
             </button>
             <button
               type="button"
-              onClick={() => setShowEmojiPicker(prev => !prev)}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600"
-              title="Emoji"
-            >
-              <Smile size={20} />
-            </button>
-            <button
-              type="button"
               onClick={isRecording ? stopRecording : startRecording}
               disabled={isTranscribing}
               className={`p-2 rounded-lg transition-colors ${
@@ -545,6 +470,14 @@ export default function ChatPage() {
               title={isRecording ? 'Stop recording' : 'Start recording'}
             >
               {isRecording ? <MicOff size={20} /> : <Mic size={20} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEmojiPicker(prev => !prev)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600"
+              title="Emoji"
+            >
+              <Smile size={20} />
             </button>
             <div className="flex-1"></div>
           </div>

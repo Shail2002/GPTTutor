@@ -54,6 +54,13 @@ def _extract_key_points(summary_text: str) -> list[str]:
     return key_points
 
 
+def _limit_words(text: str, max_words: int) -> str:
+    words = text.split()
+    if len(words) <= max_words:
+        return text.strip()
+    return " ".join(words[:max_words]).strip()
+
+
 def _chat_with_fallback(prompt: str, temperature: float = 0.4, max_tokens: int = 1200) -> str:
     if not rag_service.ensure_openai_client():
         raise HTTPException(status_code=400, detail="OpenAI client not configured")
@@ -92,12 +99,22 @@ async def generate_summary(
         raise HTTPException(status_code=404, detail="Material not found")
 
     content = _load_material_text(material_id)
+    length = request.length or "medium"
+    word_limits = {
+        "short": 100,
+        "medium": 200,
+        "long": 500,
+    }
+    max_words = word_limits.get(length, 200)
+
     prompt = prompt_service.SUMMARY_PROMPT_TEMPLATE.format(
         content=content[:30000],
-        length=request.length or "medium",
+        length=length,
+        word_limit=max_words,
     )
 
     summary_text = _chat_with_fallback(prompt, temperature=0.4, max_tokens=1200)
+    summary_text = _limit_words(summary_text, max_words)
     key_points = _extract_key_points(summary_text)
 
     summary_record = Summary(
@@ -138,6 +155,7 @@ async def generate_flashcards(
     prompt = prompt_service.FLASHCARD_PROMPT_TEMPLATE.format(
         content=content[:30000],
         count=count,
+        level=request.level,
     )
 
     raw = _chat_with_fallback(prompt, temperature=0.2, max_tokens=1600)
@@ -204,6 +222,7 @@ async def generate_quiz(
     prompt = prompt_service.QUIZ_PROMPT_TEMPLATE.format(
         content=content[:30000],
         questions=questions,
+        level=request.level,
     )
 
     raw = _chat_with_fallback(prompt, temperature=0.2, max_tokens=1800)

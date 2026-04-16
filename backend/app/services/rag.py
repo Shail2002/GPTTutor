@@ -286,18 +286,30 @@ Provide a clear, accurate answer that:
 3. Provides relevant examples from FE524
 4. Cites sources from the materials"""
 
+    GENERAL_CHAT_PROMPT_TEMPLATE = """Student question: {query}
+
+Answer as a helpful FE524 Financial Engineering tutor.
+
+Rules:
+- Stay strictly within FE524 course scope
+- If the question is unrelated to FE524, politely say: "Please ask me anything about FE524."
+- If the question is FE524-related but no document context is provided, answer from general FE524 knowledge without claiming you saw a specific PDF
+- Keep the response clear, realistic, and concise
+- Use math notation when useful
+"""
+
     SUMMARY_PROMPT_TEMPLATE = """Please summarize the following course material concisely.
 
 Material:
 {content}
 
 Provide:
-1. A {length} summary (2-3 paragraphs for short, 4-6 for medium, 6-10 for long)
+1. A {length} summary with a strict maximum of {word_limit} words
 2. Key takeaways (3-5 bullet points)
 3. Important formulas or concepts to remember
 4. Common misconceptions to avoid"""
 
-    FLASHCARD_PROMPT_TEMPLATE = """Create {count} high-quality flashcards from this material.
+    FLASHCARD_PROMPT_TEMPLATE = """Create {count} high-quality flashcards from this material for {level} level students.
 
 Material:
 {content}
@@ -305,11 +317,11 @@ Material:
 Format: Return a JSON array of objects with "question" and "answer" keys.
 Focus on:
 - Key definitions and formulas
-- Conceptual understanding
-- Problem-solving approaches
+- Conceptual understanding appropriate for {level}
+- Problem-solving approaches at {level} difficulty
 - Real-world applications to FE524 topics"""
 
-    QUIZ_PROMPT_TEMPLATE = """Generate {questions} quiz questions from this material.
+    QUIZ_PROMPT_TEMPLATE = """Generate {questions} quiz questions from this material for {level} level students.
 
 Material:
 {content}
@@ -322,8 +334,8 @@ Format: Return a JSON array with objects containing:
 
 Focus on:
 - Core concepts understanding
-- Application to financial scenarios
-- Quantitative problem-solving
+- Application to financial scenarios matching {level} difficulty
+- Quantitative problem-solving suitable for {level}
 - Recognizing key relationships"""
 
 rag_service = RAGService()
