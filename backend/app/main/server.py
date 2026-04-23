@@ -7,6 +7,7 @@ import logging
 from app.config import settings
 from app.db import init_db
 from app.routes import health, materials_routes, chat_routes, study_routes, audio_routes
+from app.routes import auth_routes
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
     app.include_router(chat_routes.router, prefix="/api/chat", tags=["chat"])
     app.include_router(study_routes.router, prefix="/api/study", tags=["study"])
     app.include_router(audio_routes.router, prefix="/api/audio", tags=["audio"])
+    app.include_router(auth_routes.router, tags=["auth"])
 
     @app.on_event("startup")
     def startup_event():

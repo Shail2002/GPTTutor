@@ -101,6 +101,15 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 OPENAI_API_KEY=sk-your-key-here
 DATABASE_URL=postgresql://user:password@localhost:5432/fe524_tutor
 DEBUG=True
+
+# Google OAuth (required for Sign in with Google)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+# Must match what's set in Google Cloud Console
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+
+# Where to send the user after login
+FRONTEND_URL=http://localhost:3000
 ```
 
 ## 🌐 Browse the App

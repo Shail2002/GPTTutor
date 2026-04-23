@@ -1,19 +1,39 @@
+"use client"
+
+import { useEffect, useState } from 'react'
 import { PlusCircle } from 'lucide-react'
+
+import { apiClient } from '../../lib/api'
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const [userName, setUserName] = useState<string>('')
+  const [userEmail, setUserEmail] = useState<string>('')
+
+  useEffect(() => {
+    const loadMe = async () => {
+      try {
+        const me = await apiClient.me()
+        setUserName(me?.name || '')
+        setUserEmail(me?.email || '')
+      } catch {
+        setUserName('')
+        setUserEmail('')
+      }
+    }
+    loadMe()
+  }, [])
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold gradient-blue bg-clip-text text-transparent">
-            FE524
-          </h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">FE524</h1>
           <p className="text-xs text-gray-500 mt-1">AI Tutor</p>
         </div>
 
@@ -43,11 +63,24 @@ export default function DashboardLayout({
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-blue-600 rounded-full"></div>
             <div>
-              <div className="text-sm font-medium">Alex</div>
-              <div className="text-xs text-gray-500">student@fe524.edu</div>
+              <div className="text-sm font-medium">{userName || 'Signed in'}</div>
+              <div className="text-xs text-gray-500">{userEmail || '—'}</div>
             </div>
           </div>
-          <button className="w-full text-left text-xs text-gray-600 hover:text-gray-900 py-2">
+          <button
+            className="w-full text-left text-xs font-medium text-gray-600 hover:text-gray-900 py-2"
+            onClick={async () => {
+              try {
+                // Clear cookies server-side.
+                await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/auth/logout`, {
+                  method: 'POST',
+                  credentials: 'include',
+                })
+              } finally {
+                window.location.href = '/'
+              }
+            }}
+          >
             Sign out
           </button>
         </div>

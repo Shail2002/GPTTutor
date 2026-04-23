@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 
+    # Auth (Google OAuth)
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    # Must match the Authorized redirect URI configured in Google Cloud Console
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/auth/google/callback"
+
+    # Frontend base URL for post-login redirects
+    FRONTEND_URL: str = "http://localhost:3000"
+
+    # Cookie session
+    SESSION_COOKIE_NAME: str = "fe524_session"
+
     # RAG
     CHUNK_SIZE: int = 1024
     CHUNK_OVERLAP: int = 200

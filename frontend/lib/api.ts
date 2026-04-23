@@ -71,6 +71,7 @@ export class APIClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     const response = await fetch(url, {
+  credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -100,6 +101,10 @@ export class APIClient {
     })
   }
 
+  async me() {
+    return this.request<{ name: string; email?: string | null }>('/api/auth/me')
+  }
+
   // Materials
   async uploadMaterial(file: File) {
     const formData = new FormData()
@@ -108,6 +113,7 @@ export class APIClient {
     const response = await fetch(`${this.baseURL}/api/materials/upload`, {
       method: 'POST',
       body: formData,
+      credentials: 'include',
     })
 
     if (!response.ok) {
@@ -169,6 +175,7 @@ export class APIClient {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ text, voice }),
+  credentials: 'include',
     })
 
     if (!response.ok) {
@@ -185,6 +192,7 @@ export class APIClient {
     const response = await fetch(`${this.baseURL}/api/audio/transcribe`, {
       method: 'POST',
       body: formData,
+  credentials: 'include',
     })
 
     if (!response.ok) {

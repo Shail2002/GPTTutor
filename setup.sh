@@ -48,12 +48,18 @@ source venv/bin/activate
 pip install -r requirements.txt
 echo "✓ Backend dependencies installed"
 
-cat > ../.env << EOF
+cat > .env << EOF
 OPENAI_API_KEY=sk-your-key-here
 DATABASE_URL=postgresql://user:password@localhost:5432/fe524_tutor
 DEBUG=True
 CHROMA_DB_PATH=./data/.chroma
 UPLOAD_DIR=./data/uploads
+
+# Google OAuth (needed for "Continue with Google")
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REDIRECT_URI=http://localhost:8000/auth/google/callback
+FRONTEND_URL=http://localhost:3000
 EOF
 echo "✓ Backend .env created - Update OPENAI_API_KEY!"
 
@@ -65,7 +71,7 @@ echo ""
 echo "✅ Setup complete!"
 echo ""
 echo "🎯 Next steps:"
-echo "  1. Update .env with your OpenAI API key"
+echo "  1. Update backend/.env with your OpenAI API key + Google OAuth creds"
 echo "  2. Terminal 1: cd frontend && npm run dev"
 echo "  3. Terminal 2: cd backend && source venv/bin/activate && python -m uvicorn app.main.server:app --reload"
 echo "  4. Open http://localhost:3000"

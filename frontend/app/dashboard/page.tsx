@@ -9,10 +9,18 @@ export default function DashboardPage() {
   const [uploadedMaterials, setUploadedMaterials] = useState<MaterialDTO[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isUploading, setIsUploading] = useState(false)
+  const [userName, setUserName] = useState<string>('')
 
   useEffect(() => {
     const loadMaterials = async () => {
       try {
+        try {
+          const me = await apiClient.me()
+          setUserName(me?.name || '')
+        } catch {
+          // Not logged in yet or auth not available.
+          setUserName('')
+        }
         const materials = await apiClient.getMaterials()
         setUploadedMaterials(materials.slice(0, 5))
       } catch (error) {
@@ -51,8 +59,10 @@ export default function DashboardPage() {
     <div className="flex-1 overflow-y-auto">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-8 py-6">
-        <h1 className="text-3xl font-bold text-gray-900">Welcome back, Alex.</h1>
-        <p className="text-gray-600 mt-1">Ready to continue your mastery of FE524 Financial Engineering?</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Welcome back{userName ? `, ${userName}` : ''}.
+        </h1>
+  <p className="text-gray-600 mt-1">Ready to keep learning? Pick up where you left off.</p>
       </div>
 
       {/* Content */}
@@ -69,7 +79,7 @@ export default function DashboardPage() {
           <div className="space-y-3">
             {!isLoading && uploadedMaterials.length === 0 && (
               <div className="academic-card p-6 text-sm text-gray-600">
-                No materials uploaded yet. Upload your first FE524 lecture PDF to get started.
+                No materials uploaded yet. Upload your first PDF to get started.
               </div>
             )}
             {uploadedMaterials.map((material) => (
