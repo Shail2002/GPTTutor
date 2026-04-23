@@ -5,10 +5,11 @@ from pydantic import ConfigDict, field_validator
 
 # Root directory
 ROOT_DIR = Path(__file__).parent.parent
+PROJECT_ROOT = ROOT_DIR.parent
 
 class Settings(BaseSettings):
     model_config = ConfigDict(
-        env_file=".env",
+        env_file=(str(PROJECT_ROOT / ".env"), str(ROOT_DIR / ".env"), ".env"),
         env_file_encoding="utf-8",
         case_sensitive=True
     )

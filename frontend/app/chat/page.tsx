@@ -1,7 +1,7 @@
 "use client"
 
 import Link from 'next/link'
-import { ArrowLeft, Send, Plus, Smile, Paperclip, Zap, Loader, Trash2, ThumbsUp, ThumbsDown, Mic, MicOff, BookOpen, Wrench, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Send, Plus, Smile, Paperclip, Zap, Loader, Trash2, ThumbsUp, ThumbsDown, Mic, MicOff, BookOpen, Wrench, CheckCircle2, Copy, Check } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 import ReactMarkdown from 'react-markdown'
 import apiClient from '../../lib/api'
@@ -86,6 +86,9 @@ export default function ChatPage() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [attachmentName, setAttachmentName] = useState('')
+  const [copiedKey, setCopiedKey] = useState('')
+  const [editingMessageId, setEditingMessageId] = useState('')
+  const [editingText, setEditingText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -247,6 +250,7 @@ export default function ChatPage() {
     try {
       const uploaded = await apiClient.uploadMaterial(file)
       setMaterials(prev => [uploaded, ...prev.filter(m => m.id !== uploaded.id)])
+      setSelectedMaterialIds((prev) => (prev.includes(uploaded.id) ? prev : [...prev, uploaded.id]))
     } catch (error) {
       console.error('Attachment upload failed:', error)
       alert('Attachment upload failed. Please try again.')
@@ -316,6 +320,46 @@ export default function ChatPage() {
 
   const applyTutorMode = (prompt: string) => {
     setInput((prev) => (prev.trim() ? `${prompt}${prev}` : prompt))
+  }
+
+  const extractCodeBlocks = (content: string) => {
+    const matches = content.match(/```[\s\S]*?```/g)
+    if (!matches) return ''
+    return matches
+      .map((block) => block.replace(/```[a-zA-Z0-9_-]*\n?/, '').replace(/```$/, '').trim())
+      .filter(Boolean)
+      .join('\n\n')
+  }
+
+  const copyToClipboard = async (text: string, key: string) => {
+    if (!text.trim()) return
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedKey(key)
+      setTimeout(() => setCopiedKey(''), 1500)
+    } catch (error) {
+      console.error('Copy failed:', error)
+      alert('Copy failed. Please copy manually.')
+    }
+  }
+
+  const startEditingMessage = (message: Message) => {
+    setEditingMessageId(message.id)
+    setEditingText(message.content)
+  }
+
+  const cancelEditingMessage = () => {
+    setEditingMessageId('')
+    setEditingText('')
+  }
+
+  const saveEditedMessage = (messageId: string) => {
+    const nextText = editingText.trim()
+    if (!nextText) return
+    setMessages((prev) => prev.map((message) => (
+      message.id === messageId ? { ...message, content: nextText } : message
+    )))
+    cancelEditingMessage()
   }
 
   return (
@@ -406,6 +450,10 @@ export default function ChatPage() {
                 key={message.id}
                 className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
+                {(() => {
+                  const codeOnly = message.role === 'assistant' ? extractCodeBlocks(message.content) : ''
+                  const isEditing = message.role === 'user' && editingMessageId === message.id
+                  return (
                 <div
                   className={`max-w-2xl ${
                     message.role === 'user'
@@ -416,6 +464,30 @@ export default function ChatPage() {
                   {message.role === 'assistant' ? (
                     <div className="tutor-markdown">
                       <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : isEditing ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={editingText}
+                        onChange={(e) => setEditingText(e.target.value)}
+                        className="w-full min-h-[88px] rounded-md border border-white/30 bg-indigo-500 px-3 py-2 text-sm text-white placeholder:text-indigo-200 focus:outline-none focus:ring-2 focus:ring-white/60"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => saveEditedMessage(message.id)}
+                          className="rounded-md bg-white text-indigo-700 px-2 py-1 text-xs font-medium hover:bg-indigo-100"
+                        >
+                          Save
+                        </button>
+                        <button
+                          type="button"
+                          onClick={cancelEditingMessage}
+                          className="rounded-md border border-white/40 px-2 py-1 text-xs font-medium hover:bg-indigo-500"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
@@ -432,8 +504,51 @@ export default function ChatPage() {
                   >
                     {message.timestamp}
                   </div>
+                  {message.role === 'user' && (
+                    <div className="mt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(message.content, `msg-${message.id}`)}
+                        className="inline-flex items-center gap-1 text-xs text-indigo-100 hover:text-white"
+                        title="Copy question"
+                      >
+                        {copiedKey === `msg-${message.id}` ? <Check size={12} /> : <Copy size={12} />}
+                        {copiedKey === `msg-${message.id}` ? 'Copied' : 'Copy'}
+                      </button>
+                      {editingMessageId !== message.id && (
+                        <button
+                          type="button"
+                          onClick={() => startEditingMessage(message)}
+                          className="inline-flex items-center gap-1 text-xs text-indigo-100 hover:text-white"
+                          title="Edit question"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {message.role === 'assistant' && (
                     <div className="mt-2 flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(message.content, `msg-${message.id}`)}
+                        className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+                        title="Copy full answer"
+                      >
+                        {copiedKey === `msg-${message.id}` ? <Check size={12} /> : <Copy size={12} />}
+                        {copiedKey === `msg-${message.id}` ? 'Copied' : 'Copy'}
+                      </button>
+                      {codeOnly && (
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(codeOnly, `code-${message.id}`)}
+                          className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+                          title="Copy code blocks only"
+                        >
+                          {copiedKey === `code-${message.id}` ? <Check size={12} /> : <Copy size={12} />}
+                          {copiedKey === `code-${message.id}` ? 'Code Copied' : 'Copy Code'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => setMessageFeedback(message.id, 'up')}
@@ -459,6 +574,8 @@ export default function ChatPage() {
                     </div>
                   )}
                 </div>
+                  )
+                })()}
               </div>
             ))}
             {isLoading && (

@@ -108,6 +108,16 @@ def _answer_mode(query: str) -> str:
     return "normal"
 
 
+def _is_code_request(query: str) -> bool:
+    text = query.lower()
+    coding_terms = [
+        "code", "python", "java", "javascript", "typescript", "sql", "fastapi",
+        "script", "function", "class", "program", "implementation", "implement",
+        "debug", "bug", "api", "endpoint", "algorithm", "compile", "run",
+    ]
+    return any(term in text for term in coding_terms)
+
+
 def _tokens(text: str) -> set[str]:
     stop_words = {
         "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "how", "i",
@@ -215,6 +225,32 @@ def _source_briefing(chunks: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def _hydrate_material_names(db: Session, chunks: list[dict]) -> list[dict]:
+    """Fill missing material_name values from the materials table."""
+    missing_ids = {
+        chunk.get("material_id")
+        for chunk in chunks
+        if chunk.get("material_id") and not chunk.get("material_name")
+    }
+    if not missing_ids:
+        return chunks
+
+    materials = db.query(Material).filter(Material.id.in_(missing_ids)).all()
+    id_to_name = {material.id: material.name for material in materials}
+
+    hydrated: list[dict] = []
+    for chunk in chunks:
+        material_id = chunk.get("material_id")
+        if material_id and not chunk.get("material_name"):
+            chunk = {
+                **chunk,
+                "material_name": id_to_name.get(material_id, material_id),
+            }
+        hydrated.append(chunk)
+
+    return hydrated
+
+
 def _general_fe524_reply(query: str) -> str:
     client = rag_service.ensure_openai_client()
     if not client:
@@ -225,6 +261,7 @@ def _general_fe524_reply(query: str) -> str:
 
     try:
         answer_mode = _answer_mode(query)
+        is_code_request = _is_code_request(query)
         response = client.chat.completions.create(
             model=settings.OPENAI_MODEL,
             messages=[
@@ -234,11 +271,12 @@ def _general_fe524_reply(query: str) -> str:
                     "content": PromptService.GENERAL_CHAT_PROMPT_TEMPLATE.format(
                         query=query,
                         answer_mode=answer_mode,
+                        code_request="yes" if is_code_request else "no",
                     ),
                 },
             ],
             temperature=0.35,
-            max_tokens=2200,
+            max_tokens=2800 if is_code_request else 2200,
         )
         return response.choices[0].message.content or "I could not generate a useful answer. Please try rephrasing the question."
     except Exception as exc:
@@ -279,8 +317,10 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
         lowered_query = query_text.lower()
 
         material_ids = request.material_ids or []
-        should_use_materials = bool(material_ids) or _mentions_material_context(query_text)
+        any_material_uploaded = db.query(Material.id).first() is not None
+        should_use_materials = bool(material_ids) or _mentions_material_context(query_text) or any_material_uploaded
         answer_mode = _answer_mode(query_text)
+        is_code_request = _is_code_request(query_text)
         retrieval_limit = 8 if answer_mode in {"assignment", "review"} else settings.TOP_K_RESULTS
 
         if _is_greeting(query_text):
@@ -299,17 +339,17 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
 
         # Summary-style questions should use the full material text, not just similarity search.
         if any(keyword in lowered_query for keyword in ["summarize", "summary", "summarise"]):
-            if not material_ids:
+            material_query = db.query(Material)
+            if material_ids:
+                material_query = material_query.filter(Material.id.in_(material_ids))
+
+            materials = material_query.order_by(Material.uploaded_at.desc()).limit(5).all()
+            if not materials:
                 answer = (
-                    "I can summarize your FE524 lecture notes once you attach or select a PDF. "
-                    "If you want, ask me a normal FE524 question now and I’ll help right away."
+                    "Please upload course material first, then ask your summary question again."
                 )
                 return _save_chat_response(db, query_text, answer, [])
 
-            material_query = db.query(Material)
-            material_query = material_query.filter(Material.id.in_(material_ids))
-
-            materials = material_query.order_by(Material.uploaded_at.desc()).all()
             full_text = "\n\n".join(
                 text for material in materials if (text := _load_material_text(material))
             )
@@ -362,6 +402,7 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
                 top_k=retrieval_limit,
                 material_ids=material_ids,
             )
+            relevant_chunks = _hydrate_material_names(db, relevant_chunks)
             if not relevant_chunks:
                 relevant_chunks = _retrieve_text_chunks_from_materials(
                     db=db,
@@ -398,6 +439,7 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
                     query=query_text,
                     relevant_chunks=relevant_chunks,
                     answer_mode=answer_mode,
+                    code_request=is_code_request,
                 )
             else:
                 answer = _general_fe524_reply(query_text)
@@ -410,6 +452,7 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
                     top_k=retrieval_limit,
                     material_ids=material_ids,
                 )
+                relevant_chunks = _hydrate_material_names(db, relevant_chunks)
                 if not relevant_chunks:
                     relevant_chunks = _retrieve_text_chunks_from_materials(
                         db=db,
@@ -446,6 +489,7 @@ async def chat(request: ChatMessage, db: Session = Depends(get_db)) -> ChatRespo
                     query=query_text,
                     relevant_chunks=relevant_chunks,
                     answer_mode=answer_mode,
+                    code_request=is_code_request,
                 )
             else:
                 answer = _general_fe524_reply(query_text)
