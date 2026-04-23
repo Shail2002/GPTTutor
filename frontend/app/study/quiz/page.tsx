@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Trophy, Target, RotateCcw } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, Trophy, Target, RotateCcw } from 'lucide-react'
 import { apiClient, MaterialDTO, QuizDTO, StudyLevel } from '../../../lib/api'
 
 const LEVEL_CONFIG: Record<StudyLevel, { label: string; target: number; defaultQuestions: number; description: string }> = {
@@ -94,7 +95,16 @@ export default function QuizPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-gray-900">Quiz</h1>
+        <div>
+          <Link
+            href="/dashboard"
+            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft size={16} />
+            Back to dashboard
+          </Link>
+          <h1 className="text-3xl font-bold text-gray-900">Quiz</h1>
+        </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           {(Object.keys(LEVEL_CONFIG) as StudyLevel[]).map((moduleLevel) => {

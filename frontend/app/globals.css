@@ -21,3 +21,73 @@ body {
 .gradient-blue {
   background: linear-gradient(135deg, #1e3a5f 0%, #2851a3 100%);
 }
+
+.tutor-markdown {
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.tutor-markdown h1,
+.tutor-markdown h2,
+.tutor-markdown h3 {
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.tutor-markdown h1 {
+  font-size: 1.25rem;
+}
+
+.tutor-markdown h2 {
+  font-size: 1.1rem;
+}
+
+.tutor-markdown h3 {
+  font-size: 1rem;
+}
+
+.tutor-markdown p {
+  margin: 0.5rem 0;
+}
+
+.tutor-markdown ul,
+.tutor-markdown ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.tutor-markdown ul {
+  list-style-type: disc;
+}
+
+.tutor-markdown ol {
+  list-style-type: decimal;
+}
+
+.tutor-markdown li {
+  margin: 0.25rem 0;
+}
+
+.tutor-markdown code {
+  border-radius: 0.25rem;
+  background: #e5e7eb;
+  padding: 0.1rem 0.3rem;
+  font-size: 0.82rem;
+}
+
+.tutor-markdown pre {
+  margin: 0.75rem 0;
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background: #111827;
+  padding: 0.9rem;
+  color: #f9fafb;
+}
+
+.tutor-markdown pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
