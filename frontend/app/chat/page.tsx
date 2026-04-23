@@ -1,7 +1,9 @@
 "use client"
 
-import { Send, Plus, Smile, Paperclip, Zap, Loader, Trash2, ThumbsUp, ThumbsDown, Mic, MicOff } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, Send, Plus, Smile, Paperclip, Zap, Loader, Trash2, ThumbsUp, ThumbsDown, Mic, MicOff, BookOpen, Wrench, CheckCircle2 } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
+import ReactMarkdown from 'react-markdown'
 import apiClient from '../../lib/api'
 
 interface Message {
@@ -26,6 +28,31 @@ interface ChatSession {
   messages: Message[]
   selectedMaterialIds: string[]
 }
+
+const STARTER_PROMPTS = [
+  'Explain this concept with a real-world example.',
+  'Read the selected homework prompt and give me the correct plan.',
+  'Use the selected notes and guide me through the key ideas.',
+  'Check if this solution is correct against the homework prompt.',
+]
+
+const TUTOR_MODES = [
+  {
+    label: 'Concept Coach',
+    icon: BookOpen,
+    prompt: 'Explain this concept clearly with intuition and one real-world example: ',
+  },
+  {
+    label: 'Homework Builder',
+    icon: Wrench,
+    prompt: 'Read the selected homework prompt first, then give me the correct step-by-step plan: ',
+  },
+  {
+    label: 'Review My Work',
+    icon: CheckCircle2,
+    prompt: 'Review my approach, find mistakes, and tell me precise fixes: ',
+  },
+]
 
 function createSessionName(messages: Message[]) {
   const firstUser = messages.find((m) => m.role === 'user')
@@ -283,13 +310,30 @@ export default function ChatPage() {
       ? 'Transcribing...'
       : ''
 
+  const selectedMaterialNames = materials
+    .filter((material) => selectedMaterialIds.includes(material.id))
+    .map((material) => material.name)
+
+  const applyTutorMode = (prompt: string) => {
+    setInput((prev) => (prev.trim() ? `${prompt}${prev}` : prompt))
+  }
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Chat Header */}
       <div className="bg-white border-b border-gray-200 px-8 py-4 flex items-center justify-between">
         <div>
+          <Link
+            href="/dashboard"
+            className="mb-2 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft size={16} />
+            Back to dashboard
+          </Link>
           <h1 className="text-xl font-bold text-gray-900">FE524 Tutor Chat</h1>
-          <p className="text-sm text-gray-500">Ask questions about your course materials</p>
+          <p className="text-sm text-gray-500">
+            Ask concepts, use selected notes, or work through assignments with guided help
+          </p>
         </div>
         <button
           type="button"
@@ -333,14 +377,26 @@ export default function ChatPage() {
       <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
         {messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-center">
-            <div>
+            <div className="max-w-2xl">
               <Zap size={48} className="mx-auto mb-4 text-gray-300" />
               <p className="text-gray-500 text-lg">Start a conversation</p>
               <p className="text-gray-400 text-sm mt-2">
                 {materials.length === 0
                   ? 'Upload course materials to begin'
-                  : 'Ask anything about FE524'}
+                  : 'Ask anything about FE524, or choose a prompt below'}
               </p>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2">
+                {STARTER_PROMPTS.map((prompt) => (
+                  <button
+                    key={prompt}
+                    type="button"
+                    onClick={() => setInput(prompt)}
+                    className="rounded-lg border border-gray-200 bg-white px-4 py-3 text-left text-sm font-medium text-gray-700 shadow-sm hover:border-indigo-300 hover:bg-indigo-50"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         ) : (
@@ -357,10 +413,16 @@ export default function ChatPage() {
                       : 'bg-gray-100 text-gray-900 rounded-2xl rounded-tl-none'
                   } px-4 py-3`}
                 >
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  {message.role === 'assistant' ? (
+                    <div className="tutor-markdown">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                  )}
                   {message.sources && message.sources.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-300/20 text-xs opacity-75">
-                      📌 {message.sources.join(', ')}
+                      Sources: {message.sources.join(', ')}
                     </div>
                   )}
                   <div
@@ -420,7 +482,7 @@ export default function ChatPage() {
           {/* Material filter */}
           {materials.length > 0 && (
             <div className="mb-3 flex gap-2 flex-wrap">
-              <span className="text-xs text-gray-500 self-center">Filter by materials:</span>
+              <span className="text-xs text-gray-500 self-center">Use materials:</span>
               {materials.map((material) => (
                 <button
                   key={material.id}
@@ -436,6 +498,29 @@ export default function ChatPage() {
               ))}
             </div>
           )}
+
+          {selectedMaterialNames.length > 0 && (
+            <div className="mb-3 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-800">
+              Tutor will ground the next answer in: {selectedMaterialNames.join(', ')}
+            </div>
+          )}
+
+          <div className="mb-3 grid gap-2 sm:grid-cols-3">
+            {TUTOR_MODES.map((mode) => {
+              const Icon = mode.icon
+              return (
+                <button
+                  key={mode.label}
+                  type="button"
+                  onClick={() => applyTutorMode(mode.prompt)}
+                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:border-indigo-300 hover:bg-indigo-50"
+                >
+                  <Icon size={15} />
+                  {mode.label}
+                </button>
+              )
+            })}
+          </div>
 
           {attachmentName && (
             <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-xs text-indigo-700">

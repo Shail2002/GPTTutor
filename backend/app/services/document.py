@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Tuple
 import logging
 from pypdf import PdfReader
-import os
 
 logger = logging.getLogger(__name__)
 
@@ -21,9 +20,24 @@ class DocumentProcessor:
         """
         try:
             pdf_reader = PdfReader(file_path)
-            text = ""
+            text_parts: list[str] = []
             for page in pdf_reader.pages:
-                text += page.extract_text()
+                text_parts.append(page.extract_text() or "")
+
+            text = "\n\n".join(text_parts).strip()
+
+            # PyPDF can be weak on slide decks or table-heavy PDFs. If extraction is thin,
+            # try PyMuPDF when available before giving up.
+            if len(text.split()) < 50:
+                try:
+                    import fitz
+
+                    doc = fitz.open(file_path)
+                    fitz_text = "\n\n".join(page.get_text("text") for page in doc).strip()
+                    if len(fitz_text.split()) > len(text.split()):
+                        text = fitz_text
+                except Exception as fallback_error:
+                    logger.warning(f"PyMuPDF fallback unavailable or failed: {fallback_error}")
             
             return text, len(pdf_reader.pages)
         except Exception as e:

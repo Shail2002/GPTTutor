@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Upload, Filter, Trash2, Eye } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, Upload, Filter, Trash2, Eye } from 'lucide-react'
 
 import { apiClient, MaterialDTO } from '../../lib/api'
 
@@ -63,6 +64,13 @@ export default function MaterialsPage() {
       <div className="bg-white border-b border-gray-200 px-8 py-6">
         <div className="flex items-center justify-between">
           <div>
+            <Link
+              href="/dashboard"
+              className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft size={16} />
+              Back to dashboard
+            </Link>
             <h1 className="text-3xl font-bold text-gray-900">Course Materials</h1>
             <p className="text-gray-600 mt-1">Upload and manage FE524 course documents</p>
           </div>

@@ -1,14 +1,14 @@
 import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic import ConfigDict, field_validator
 
 # Root directory
 ROOT_DIR = Path(__file__).parent.parent
 
 class Settings(BaseSettings):
     model_config = ConfigDict(
-        env_file="/Users/shailshah/Downloads/ASSGPT/.env",
+        env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=True
     )
@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     RELOAD: bool = True
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:8000"]
+    CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:3001", "http://localhost:8000"]
     CORS_ALLOW_CREDENTIALS: bool = True
     CORS_ALLOW_METHODS: list[str] = ["*"]
     CORS_ALLOW_HEADERS: list[str] = ["*"]
@@ -56,6 +56,17 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 1024
     CHUNK_OVERLAP: int = 200
     TOP_K_RESULTS: int = 5
+
+    @field_validator("DEBUG", "RELOAD", mode="before")
+    @classmethod
+    def parse_bool_like_env(cls, value):
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on", "debug", "development", "dev"}:
+                return True
+            if normalized in {"0", "false", "no", "off", "release", "production", "prod"}:
+                return False
+        return value
 
 settings = Settings()
 

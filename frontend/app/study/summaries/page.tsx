@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Play, Loader2 } from 'lucide-react'
+import Link from 'next/link'
+import { ArrowLeft, Play, Loader2 } from 'lucide-react'
 import { apiClient, MaterialDTO, SummaryDTO } from '../../../lib/api'
 
 export default function SummariesPage() {
@@ -72,7 +73,16 @@ export default function SummariesPage() {
   return (
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        <h1 className="text-3xl font-bold text-gray-900">Summaries</h1>
+        <div>
+          <Link
+            href="/dashboard"
+            className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft size={16} />
+            Back to dashboard
+          </Link>
+          <h1 className="text-3xl font-bold text-gray-900">Summaries</h1>
+        </div>
 
         <div className="bg-white border border-gray-200 rounded-xl p-4 flex flex-wrap gap-3 items-center">
           <select

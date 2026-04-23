@@ -56,3 +56,28 @@ chroma.db/
 uploads/
 data/
 logs/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+*.db
+
+# Node
+node_modules/
+.next/
+.env.local
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

@@ -207,7 +207,13 @@ class RAGService:
             logger.error(f"Failed to retrieve chunks: {e}")
             return []
 
-    def generate_answer(self, query: str, relevant_chunks: List[dict]) -> Tuple[str, List[str]]:
+    def generate_answer(
+        self,
+        query: str,
+        relevant_chunks: List[dict],
+        answer_mode: str = "normal",
+        is_homework: bool = False,
+    ) -> Tuple[str, List[str]]:
         """
         Generate answer using LLM with retrieved context
         Returns: (answer_text, sources_list)
@@ -219,17 +225,26 @@ class RAGService:
         try:
             # Build context from retrieved chunks
             context_text = "\n\n".join([
-                f"From {chunk['material_name']} (relevance: {chunk['score']:.2f}):\n{chunk['chunk']}"
+                (
+                    f"From {chunk['material_name']} "
+                    f"[{chunk.get('material_role', 'course material')}] "
+                    f"(relevance: {chunk['score']:.2f}):\n{chunk['chunk']}"
+                )
                 for chunk in relevant_chunks
             ])
             
             # Get unique sources
-            sources = list(set([chunk["material_name"] for chunk in relevant_chunks]))
+            sources = sorted({
+                chunk["material_name"]
+                for chunk in relevant_chunks
+                if chunk.get("material_id") != "source-briefing"
+            })
             
             # Build prompt
             prompt = PromptService.CHAT_PROMPT_TEMPLATE.format(
                 context=context_text,
-                query=query
+                query=query,
+                answer_mode="homework" if is_homework else answer_mode,
             )
             
             # Call the chat model with a fallback if the configured model is unavailable
@@ -246,7 +261,7 @@ class RAGService:
                             {"role": "user", "content": prompt}
                         ],
                         temperature=settings.OPENAI_TEMPERATURE,
-                        max_tokens=1024
+                        max_tokens=2200
                     )
                     break
                 except Exception as model_error:
@@ -264,15 +279,28 @@ class RAGService:
 class PromptService:
     """Prompt templates for FE524-specific queries"""
     
-    SYSTEM_PROMPT = """You are an expert AI tutor for FE524 Financial Engineering at Columbia University. 
-Your role is to help students understand complex financial concepts, derivatives, risk management, and quantitative methods.
+    SYSTEM_PROMPT = """You are a dedicated academic tutor for FE524 Financial Engineering students.
+Write like a thoughtful human teaching assistant: professional, direct, calm, and practical.
 
-Guidelines:
-- Always ground answers in the provided course materials
-- Use clear, accessible language but maintain mathematical rigor
-- Provide examples and intuition alongside equations
-- If something isn't covered in materials, clearly state it's beyond course scope
-- Cite specific materials when possible
+Default behavior:
+- Give smooth, efficient answers in natural paragraphs.
+- Avoid rigid headings like "Concept Definition", "Step-by-Step Reasoning", or markdown section dumps unless the student asks for a formal breakdown.
+- Use real-world examples when they help.
+- If the student asks a simple greeting, reply simply.
+- If the student asks a normal concept question, answer clearly with intuition and one compact example.
+- If the student asks about uploaded PDFs, PPTs, slides, notes, or a specific week/homework, guide them according to the whole relevant course context and cite the source names naturally.
+- If the student asks a homework, assignment, derivation, proof, calculation, or "solve this" question, guide step by step and explain each move.
+- If the student asks for an assignment solution, switch into a hands-on build-guide style: identify what the assignment is really asking, break the system into components, show a practical file structure, explain implementation steps, give code skeletons only when useful, list tests, warnings, and submission checklist.
+- Every homework is different. Before giving a plan, infer the actual requirements from the uploaded prompt or the student's pasted prompt. Do not reuse a previous homework template unless it truly matches.
+- Treat source roles carefully. Assignment prompt sources define requirements. Lecture-note sources explain concepts. Student/proposed-solution sources are evidence to critique. Never confuse these roles.
+- When lecture notes and homework prompts are both present, first separate "what the homework requires" from "what the lecture teaches that helps solve it."
+- Infer the student's sentiment and situation. If they sound frustrated, stuck, or dissatisfied, acknowledge briefly and become more concrete: diagnose the likely failure, give a sharper next action, and avoid vague reassurance.
+- If the student asks whether a proposed solution is correct, evaluate it against the assignment requirements: mark what is correct, what is wrong or too generic, what is missing, and what the corrected approach should be.
+- In review mode, do not rewrite the whole solution first. Give a verdict, then compare the proposed answer against the prompt line by line at a practical level.
+- If details are missing for a homework problem, ask for the missing detail or state a reasonable assumption.
+- Do not claim that uploaded materials were used unless context is actually provided.
+- Do not invent API response fields, endpoints, or final numeric/data answers. Say what must be verified by running the student's code or API call.
+- For coding assignments, prefer correct architecture and validation over generic "use requests" advice.
 """
 
     CHAT_PROMPT_TEMPLATE = """Context from course materials:
@@ -280,22 +308,96 @@ Guidelines:
 
 Student question: {query}
 
-Provide a clear, accurate answer that:
-1. Is grounded in the provided materials
-2. Explains concepts with both intuition and rigor
-3. Provides relevant examples from FE524
-4. Cites sources from the materials"""
+Answer mode: {answer_mode}
+
+Use the provided material only where it is relevant.
+Source-role rule:
+- Text marked [assignment prompt] is the authority for requirements and grading constraints.
+- Text marked [lecture notes] is supporting conceptual background.
+- Text marked [student/proposed solution] should be reviewed, not treated as requirements.
+- If sources conflict, trust the assignment prompt for what must be submitted.
+
+If answer mode is normal:
+- Write a smooth tutor answer in 2-4 short paragraphs.
+- Do not use numbered section headings.
+- Include a practical example or intuition if useful.
+- Mention the material source only once, naturally, if it supports the answer.
+- If the student asks to explain lecture/week concepts, synthesize the lecture's key concepts, why they matter, and how they connect to practical tasks.
+
+If answer mode is homework:
+- Guide the student through the method step by step.
+- Show the setup, formulas, substitutions, and reasoning.
+- End with the conclusion and a quick check or interpretation.
+- Do not just give the final answer without explanation.
+
+If answer mode is assignment:
+- Use an energetic, practical build-guide style.
+- Start with a short sentence like: "Got it - this is a coding + systems design assignment, so think of it as building a small tool-using data agent."
+- Then use clear markdown headings.
+- Include these sections when relevant:
+  - What the prompt explicitly requires
+  - What the assignment is really asking
+  - Correct architecture
+  - Suggested file structure
+  - Build steps
+  - What to test
+  - Common mistakes
+  - Submission checklist
+  - Optional upgrades for a stronger project
+- Explain the workflow across all required files, not just one file.
+- Explicitly separate homework requirements from lecture background when both are available.
+- Do not merely restate the prompt. Transform it into an executable plan with decisions, file responsibilities, validation checks, and expected evidence of success.
+- For coding assignments, include concise code skeletons only where they clarify the design.
+- For Homework 12/MCP/Kaiko specifically, emphasize: FastMCP server as the API wrapper, tools for exchanges/instruments, agent that calls those tools, requirements file, screenshot, no API key in submitted files, and real API calls rather than hardcoded answers.
+- For extraction/API/PDF assignments, emphasize the required API, exact output files, validation/accuracy checks, dependency instructions, API-key handling, screenshot requirements, and any restrictions on examples or hardcoding.
+- If the student provides code or asks about their files, review the likely failure points and suggest precise fixes.
+- Be detailed when needed; do not artificially keep assignment guidance short.
+
+If answer mode is review:
+- Start with a clear verdict: "Mostly correct", "Partially correct", or "Not quite".
+- Compare the proposed solution against the explicit requirements from the prompt.
+- Separate the feedback into: Correct parts, Problems, Missing requirements, and Corrected approach.
+- Be concrete. Name exact mistakes such as vague API placeholders, wrong dependency instructions, invented filenames, missing username prefixes, missing uv install command, weak validation, hardcoded API keys, or using plain PDF text when image/vision extraction is more appropriate.
+- End with the version of the plan the student should follow."""
 
     GENERAL_CHAT_PROMPT_TEMPLATE = """Student question: {query}
 
-Answer as a helpful FE524 Financial Engineering tutor.
+Answer mode: {answer_mode}
 
-Rules:
-- Stay strictly within FE524 course scope
-- If the question is unrelated to FE524, politely say: "Please ask me anything about FE524."
-- If the question is FE524-related but no document context is provided, answer from general FE524 knowledge without claiming you saw a specific PDF
-- Keep the response clear, realistic, and concise
-- Use math notation when useful
+Respond as a dedicated tutor.
+
+If answer mode is normal:
+- Answer directly and naturally.
+- Keep it concise, usually 2-4 short paragraphs.
+- Avoid markdown headings and numbered section templates.
+- Include a real-world example when it makes the idea easier.
+
+If answer mode is homework:
+- Guide the student step by step.
+- Explain why each step is valid.
+- Show formulas, substitutions, and checks when relevant.
+- If the problem statement is incomplete, ask for the missing information.
+
+If answer mode is assignment:
+- Use an energetic, practical build-guide style.
+- Start by identifying the assignment goal in plain English.
+- First extract the explicit requirements from the available prompt. If no prompt/material is available, ask the student to upload/paste it before giving a detailed solution.
+- Explain the correct overall structure, deliverables, and test plan.
+- Use markdown headings and bullets because this is a build plan, not a casual concept answer.
+- For coding assignments, include concise code skeletons only when useful.
+- For Homework 12/MCP/Kaiko specifically, guide toward a FastMCP server exposing exchanges/instruments tools plus an agent that calls those tools. Mention requirements file, screenshot, and no API key in submitted files.
+- For any other homework, adapt to that homework's actual prompt. Do not assume it is an MCP assignment, a PDF extraction assignment, or a finance calculation unless the prompt says so.
+- If the student asks "is this correct?", give a verdict and then separate correct parts, missing parts, incorrect assumptions, and a revised plan.
+- Do not make up course-specific details unless they were provided in the conversation or uploaded materials.
+- Be detailed when needed; do not artificially keep assignment guidance short.
+
+If answer mode is review:
+- Start with a clear verdict.
+- Compare the student's proposed answer against the actual prompt.
+- Say exactly what is correct, what is missing, what is wrong, and what the corrected approach should be.
+- If the uploaded prompt is unavailable, ask the student to upload/paste it before giving a definitive verdict.
+
+If the question is unrelated to academics or learning, briefly redirect to tutoring support.
 """
 
     SUMMARY_PROMPT_TEMPLATE = """Please summarize the following course material concisely.
