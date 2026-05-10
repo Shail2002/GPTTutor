@@ -72,6 +72,7 @@ export class APIClient {
     const url = `${this.baseURL}${endpoint}`
     const response = await fetch(url, {
   credentials: 'include',
+  cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -180,6 +181,24 @@ export class APIClient {
 
     if (!response.ok) {
       throw new Error(`TTS failed: ${response.status} ${response.statusText}`)
+    }
+
+    return response.blob()
+  }
+
+  async textToSpeechElevenLabs(text: string) {
+    const response = await fetch(`${this.baseURL}/api/audio/tts/elevenlabs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ text }),
+      credentials: 'include',
+      cache: 'no-store',
+    })
+
+    if (!response.ok) {
+      throw new Error(`ElevenLabs TTS failed: ${response.status} ${response.statusText}`)
     }
 
     return response.blob()

@@ -77,14 +77,21 @@ def google_login(request: Request):
             "&prompt=consent"
         )
     )
+    # Cookie behavior notes:
+    # - SameSite=None generally requires Secure=true (HTTPS) in modern browsers.
+    # - On localhost/dev (HTTP), Secure cookies won't be stored.
+    # So for dev we keep Secure=false + SameSite=Lax, which should work for top-level redirects.
+    is_https = settings.FRONTEND_URL.startswith("https://") or settings.GOOGLE_REDIRECT_URI.startswith("https://")
+    cookie_samesite = "none" if is_https else "lax"
+    cookie_secure = True if is_https else False
+
     redirect.set_cookie(
         key="oauth_state",
         value=state,
         httponly=True,
-        secure=False,
-        samesite="lax",
-    # Use an aware UTC datetime to keep Starlette happy when formatting expires.
-    expires=datetime.now(timezone.utc) + timedelta(minutes=10),
+        secure=cookie_secure,
+        samesite=cookie_samesite,
+        expires=datetime.now(timezone.utc) + timedelta(minutes=10),
     )
     return redirect
 

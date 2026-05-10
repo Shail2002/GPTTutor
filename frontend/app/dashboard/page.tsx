@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Upload, FileText, Clock, MoreVertical } from 'lucide-react'
 
 import { apiClient, MaterialDTO } from '../../lib/api'
+import CallWidget from '../../components/CallWidget'
 
 export default function DashboardPage() {
   const [uploadedMaterials, setUploadedMaterials] = useState<MaterialDTO[]>([])
@@ -57,6 +58,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex-1 overflow-y-auto">
+      <CallWidget />
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-8 py-6">
         <h1 className="text-3xl font-bold text-gray-900">

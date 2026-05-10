@@ -12,6 +12,7 @@ export default function DashboardLayout({
 }) {
   const [userName, setUserName] = useState<string>('')
   const [userEmail, setUserEmail] = useState<string>('')
+  const [activeCourseName, setActiveCourseName] = useState<string>('')
 
   useEffect(() => {
     const loadMe = async () => {
@@ -25,6 +26,16 @@ export default function DashboardLayout({
       }
     }
     loadMe()
+
+    try {
+      const activeSlug = localStorage.getItem('gpttutor:activeCourse') || ''
+      const raw = localStorage.getItem('gpttutor:courses')
+      const courses = raw ? (JSON.parse(raw) as Array<{ name: string; slug: string }>) : []
+      const found = courses.find((c) => c.slug === activeSlug)
+      setActiveCourseName(found?.name || '')
+    } catch {
+      setActiveCourseName('')
+    }
   }, [])
 
   return (
@@ -33,7 +44,9 @@ export default function DashboardLayout({
       <div className="w-64 bg-white border-r border-gray-200 flex flex-col">
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">FE524</h1>
+          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+            {activeCourseName || 'GPTTutor'}
+          </h1>
           <p className="text-xs text-gray-500 mt-1">AI Tutor</p>
         </div>
 

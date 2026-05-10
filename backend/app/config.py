@@ -65,6 +65,21 @@ class Settings(BaseSettings):
     # Cookie session
     SESSION_COOKIE_NAME: str = "fe524_session"
 
+    # ElevenLabs (TTS)
+    ELEVENLABS_API_KEY: str = ""
+    # Example voice id; override in backend/.env
+    ELEVENLABS_VOICE_ID: str = "EXAVITQu4vr4xnSDxMaL"
+
+    # Vapi (Outbound PSTN Calls)
+    # Create an API key in the Vapi dashboard.
+    VAPI_API_KEY: str = ""
+    # The assistant that should handle the call.
+    VAPI_ASSISTANT_ID: str = ""
+    # Optional: use a specific Vapi phone number id as the caller.
+    VAPI_PHONE_NUMBER_ID: str = ""
+    # Optional: if you don't use phoneNumberId, provide a from number (E.164). Requires your Vapi/Twilio setup.
+    VAPI_FROM_NUMBER: str = ""
+
     # RAG
     CHUNK_SIZE: int = 1024
     CHUNK_OVERLAP: int = 200

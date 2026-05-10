@@ -66,9 +66,7 @@ export default function SignInPage() {
 
           <p className="text-xs text-gray-400 mt-4">By creating an account you agree to our <Link href="#" className="underline">Terms</Link> and <Link href="#" className="underline">Privacy Policy</Link>.</p>
 
-          <div className="mt-6 text-center text-sm text-gray-500">
-            Want a tour? <Link href="/landing" className="text-indigo-600 underline">See what GPTTutor can do</Link>
-          </div>
+          
         </div>
       </div>
     </div>
